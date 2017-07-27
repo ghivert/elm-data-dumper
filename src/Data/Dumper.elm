@@ -5,41 +5,60 @@ import Html.Attributes
 
 
 
+
+
 type alias Location =
   { host : String
   , hostname : String
   , protocol : String
-  , testInt : Int
-  , testFloat : Float
-  , testRecord :
-    { testInside1 : String
-    , testInside2 : String
-    }
   }
+
+type Locations
+  = Nowhere
+  | Loc Location
 
 dumpLocation : Location -> Html msg
 dumpLocation =
-  dumpRecord
+  dumpRecord "Location"
     [ ("host", .host >> dumpString)
     , ("hostname", .hostname >> dumpString)
     , ("protocol", .protocol >> dumpString)
-    , ("testInt", .testInt >> dumpInt)
-    , ("testFloat", .testFloat >> dumpFloat)
-    , ("testRecord", .testRecord >> dumpInsideRecord)
-    ]
-    "Location"
-
-dumpInsideRecord : { testInside1 : String, testInside2 : String } -> Html msg
-dumpInsideRecord =
-  dumpNestedRecord
-    [ ("testInside1", .testInside1 >> dumpString)
-    , ("testInside2", .testInside2 >> dumpString)
     ]
 
+dumpNestedLocation : Location -> Html msg
+dumpNestedLocation =
+  dumpNestedRecord 1
+    [ ("host", .host >> dumpString)
+    , ("hostname", .hostname >> dumpString)
+    , ("protocol", .protocol >> dumpString)
+    ]
+
+dumpLocations : Locations -> Html msg
+dumpLocations locations =
+  dumpUnion "Locations" <|
+    case locations of
+      Nowhere ->
+        ("Nowhere", Html.text "")
+      Loc location ->
+        ("Loc", dumpNestedLocation location)
+
+main : Html msg
+main =
+  Html.div []
+    [ dumpLocation
+      (Location "host_" "hostname_" "protocol_")
+    , dumpLocations
+        Nowhere
+    ,dumpLocations
+      (Loc (Location "host_" "hostname_" "protocol_"))
+    ]
 
 
-dumpRecord : List (String, a -> Html msg) -> String -> a -> Html msg
-dumpRecord extractors name record =
+
+
+
+dumpRecord : String -> List (String, a -> Html msg) -> a -> Html msg
+dumpRecord name extractors record =
   extractors
     |> List.map (toTupleRecord record)
     |> dumpTupleRecords (Just name) 2
@@ -53,15 +72,30 @@ dumpRecord extractors name record =
         ]
       ]
 
-dumpNestedRecord : List ( String, a -> Html msg ) -> a -> Html msg
-dumpNestedRecord extractors record =
-  extractors
-    |> List.map (toTupleRecord record)
-    |> dumpTupleRecords Nothing 4
+dumpUnion : String -> (String, Html msg) -> Html msg
+dumpUnion name (type_, content) =
+  [ colorText "#C376DA" "type "
+  , colorText "#D19A66" (name ++ " =\n")
+  , colorText "#C376DA" "  "
+  , Html.span [ Html.Attributes.style [ ("color", "#D19A66"), ("display", "inline-block") ] ] [ Html.text (type_ ++ " \n") ]
+  , content
+  ]
     |> Html.div
       [ Html.Attributes.style
-        [ ("display", "inline") ]
+        [ ("white-space", "pre")
+        , ("font-family", "monospace")
+        , ("background-color", "#F6F8FA")
+        , ("padding", "12px")
+        , ("box-sizing", "border-box")
+        ]
       ]
+
+dumpNestedRecord : Int -> List ( String, a -> Html msg ) -> a -> Html msg
+dumpNestedRecord depth extractors record =
+  extractors
+    |> List.map (toTupleRecord record)
+    |> dumpTupleRecords Nothing (2 * (depth + 1))
+    |> Html.span []
 
 dumpString : String -> Html msg
 dumpString string =
@@ -98,14 +132,24 @@ dumpTupleRecords name spaces fields =
           , colorText "#5DA6E2" fieldName
           , colorText "#C376DA" " : "
           , content
-          , colorText "#98C379" "\n"
+          , if List.isEmpty tail then
+              Html.text ""
+            else
+              colorText "#98C379" "\n"
           ]
         , (List.map (dumpField spaces) tail)
-        , [ colorText "#C376DA" (spaces_ ++ "}") ]
+        , [ colorText "#C376DA" (spacesIfPresent tail spaces_ ++ "}") ]
         ]
 
     [] ->
       []
+
+spacesIfPresent : List a -> String -> String
+spacesIfPresent tail spaces =
+  if List.isEmpty tail then
+    " "
+  else
+    spaces
 
 colorText : String -> String -> Html msg
 colorText color_ text_ =
@@ -118,16 +162,10 @@ colorText color_ text_ =
 dumpField : Int -> (String, Html msg) -> Html msg
 dumpField spaces (name, field) =
   let spaces_ = String.repeat spaces " " in
-  Html.div [ Html.Attributes.style [ ("diplay", "inline") ] ]
+  Html.span []
     [ colorText "#C376DA" (spaces_ ++ ", ")
     , colorText "#5DA6E2" name
     , colorText "#C376DA" " : "
     , field
     , Html.text "\n"
     ]
-
-
-main : Html msg
-main =
-  dumpLocation
-    (Location "host_" "hostname_" "protocol_" 0 1.5 { testInside1 = "testInside1_", testInside2 = "testInside2_" })
