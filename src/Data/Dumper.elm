@@ -1,77 +1,29 @@
-module Data.Dumper exposing (..)
+module Data.Dumper exposing (dumpRecord, dumpUnion, dumpNestedRecord, dumpString, dumpInt, dumpFloat, dumpBool)
+
+{-| Provides facilities to dump data structures in HTML.
+
+@docs dumpRecord
+@docs dumpNestedRecord
+@docs dumpUnion
+@docs dumpString
+@docs dumpInt
+@docs dumpFloat
+@docs dumpBool
+-}
 
 import Html exposing (Html)
 import Html.Attributes
 
 
-
-
-
-type alias Location =
-  { host : String
-  , hostname : String
-  , protocol : String
-  }
-
-type Locations
-  = Nowhere
-  | Loc Location
-
-dumpLocation : Location -> Html msg
-dumpLocation =
-  dumpRecord "Location"
-    [ ("host", .host >> dumpString)
-    , ("hostname", .hostname >> dumpString)
-    , ("protocol", .protocol >> dumpString)
-    ]
-
-dumpNestedLocation : Location -> Html msg
-dumpNestedLocation =
-  dumpNestedRecord 1
-    [ ("host", .host >> dumpString)
-    , ("hostname", .hostname >> dumpString)
-    , ("protocol", .protocol >> dumpString)
-    ]
-
-dumpLocations : Locations -> Html msg
-dumpLocations locations =
-  dumpUnion "Locations" <|
-    case locations of
-      Nowhere ->
-        ("Nowhere", Html.text "")
-      Loc location ->
-        ("Loc", dumpNestedLocation location)
-
-main : Html msg
-main =
-  Html.div []
-    [ dumpLocation
-      (Location "host_" "hostname_" "protocol_")
-    , dumpLocations
-        Nowhere
-    ,dumpLocations
-      (Loc (Location "host_" "hostname_" "protocol_"))
-    ]
-
-
-
-
-
+{-| Dump a record in HTML. -}
 dumpRecord : String -> List (String, a -> Html msg) -> a -> Html msg
 dumpRecord name extractors record =
   extractors
     |> List.map (toTupleRecord record)
     |> dumpTupleRecords (Just name) 2
-    |> Html.div
-      [ Html.Attributes.style
-        [ ("white-space", "pre")
-        , ("font-family", "monospace")
-        , ("background-color", "#F6F8FA")
-        , ("padding", "12px")
-        , ("box-sizing", "border-box")
-        ]
-      ]
+    |> inDiv
 
+{-| Dump a union in HTML. -}
 dumpUnion : String -> (String, Html msg) -> Html msg
 dumpUnion name (type_, content) =
   [ colorText "#C376DA" "type "
@@ -80,16 +32,9 @@ dumpUnion name (type_, content) =
   , Html.span [ Html.Attributes.style [ ("color", "#D19A66"), ("display", "inline-block") ] ] [ Html.text (type_ ++ " \n") ]
   , content
   ]
-    |> Html.div
-      [ Html.Attributes.style
-        [ ("white-space", "pre")
-        , ("font-family", "monospace")
-        , ("background-color", "#F6F8FA")
-        , ("padding", "12px")
-        , ("box-sizing", "border-box")
-        ]
-      ]
+    |> inDiv
 
+{-| Dump a nested record in HTML. It is a hack: you have to provide the depth of the record. -}
 dumpNestedRecord : Int -> List ( String, a -> Html msg ) -> a -> Html msg
 dumpNestedRecord depth extractors record =
   extractors
@@ -97,19 +42,38 @@ dumpNestedRecord depth extractors record =
     |> dumpTupleRecords Nothing (2 * (depth + 1))
     |> Html.span []
 
+{-| Dump a String in HTML. -}
 dumpString : String -> Html msg
 dumpString string =
   colorText "#98C379" ("\"" ++ string ++ "\"")
 
+{-| Dump an Int in HTML. -}
 dumpInt : Int -> Html msg
 dumpInt int =
   colorText "#D19A66" (toString int)
 
+{-| Dump a Float in HTML. -}
 dumpFloat : Float -> Html msg
 dumpFloat float =
   colorText "#D19A66" (toString float)
 
+{-| Dump a Boolean in HTML. -}
+dumpBool : Bool -> Html msg
+dumpBool bool =
+  colorText "#D19A66" (toString bool)
 
+
+inDiv : List (Html msg) -> Html msg
+inDiv =
+  Html.div
+    [ Html.Attributes.style
+      [ ("white-space", "pre")
+      , ("font-family", "monospace")
+      , ("background-color", "#F6F8FA")
+      , ("padding", "12px")
+      , ("box-sizing", "border-box")
+      ]
+    ]
 
 toTupleRecord : a -> (String, a -> Html msg) -> (String, Html msg)
 toTupleRecord record (name, function) =
