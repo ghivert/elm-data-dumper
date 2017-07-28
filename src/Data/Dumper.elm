@@ -1,18 +1,29 @@
-module Data.Dumper exposing (dumpRecord, dumpUnion, dumpNestedRecord, dumpString, dumpInt, dumpFloat, dumpBool)
+module Data.Dumper
+  exposing
+    ( dumpRecord, dumpUnion, dumpNestedRecord
+    , dumpString, dumpInt, dumpFloat, dumpBool, dumpMaybe, dumpColor
+    )
 
 {-| Provides facilities to dump data structures in HTML.
 
+# Data Structures
 @docs dumpRecord
 @docs dumpNestedRecord
 @docs dumpUnion
+
+# Primitives
 @docs dumpString
 @docs dumpInt
 @docs dumpFloat
 @docs dumpBool
+@docs dumpMaybe
+@docs dumpColor
 -}
 
 import Html exposing (Html)
 import Html.Attributes
+import Color
+
 
 
 {-| Dump a record in HTML. -}
@@ -62,6 +73,24 @@ dumpBool : Bool -> Html msg
 dumpBool bool =
   colorText "#D19A66" (toString bool)
 
+{-| Dump a Maybe a in HTML. -}
+dumpMaybe : (a -> Html msg) -> Maybe a -> Html msg
+dumpMaybe dumper maybe_ =
+  case maybe_ of
+    Nothing ->
+      colorText "#D19A66" "Nothing "
+    Just value ->
+      Html.span []
+        [ colorText "#D19A66" "Just "
+        , dumper value
+        ]
+
+{-| Dump a Color.Color in HTML. -}
+dumpColor : Color.Color -> Html msg
+dumpColor =
+  Color.toRgb >> dumpColorHelp
+
+
 
 inDiv : List (Html msg) -> Html msg
 inDiv =
@@ -74,6 +103,16 @@ inDiv =
       , ("box-sizing", "border-box")
       ]
     ]
+
+dumpColorHelp : { alpha : Float, blue : Int, green : Int, red : Int } -> Html msg
+dumpColorHelp { red, green, blue, alpha } =
+  colorText "#D19A66" <|
+    "rgba("
+      ++ toString red ++ ", "
+      ++ toString green ++ ", "
+      ++ toString blue ++ ", "
+      ++ toString alpha ++
+    ")"
 
 toTupleRecord : a -> (String, a -> Html msg) -> (String, Html msg)
 toTupleRecord record (name, function) =
